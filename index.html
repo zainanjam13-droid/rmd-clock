@@ -1,0 +1,1510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ramadan Clock</title>
+<link href="https://fonts.googleapis.com/css2?family=Lateef:wght@300;400;600&family=Cinzel:wght@400;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold:#C9922A; --gold-light:#E8B84B; --gold-pale:#F5D98A;
+    --cream:#FDF6E3; --warm-dark:#1A0E00; --warm-mid:#2D1A00;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { min-height:100vh; background:var(--warm-dark); font-family:'EB Garamond',serif; overflow-x:hidden; }
+
+  .sky-layer { position:fixed; inset:0; z-index:0; transition:opacity 4s ease; pointer-events:none; }
+  #sky-night    { background:radial-gradient(ellipse at 50% 0%,#1a0533 0%,#0a0118 40%,#020008 100%); }
+  #sky-predawn  { background:radial-gradient(ellipse at 50% 0%,#2d0a3a 0%,#1a0520 50%,#05010c 100%); }
+  #sky-dawn     { background:radial-gradient(ellipse at 50% 10%,#7a2d00 0%,#3d0d00 30%,#1a0500 70%,#060100 100%); }
+  #sky-morning  { background:linear-gradient(to bottom,#1a4a8a 0%,#4a7fc1 30%,#c47a3a 70%,#8b2500 100%); }
+  #sky-day      { background:linear-gradient(to bottom,#1a3a6e 0%,#2e6bb5 40%,#6aa3d5 100%); }
+  #sky-afternoon{ background:linear-gradient(to bottom,#0f2a5a 0%,#1e5090 40%,#4a8ac0 100%); }
+  #sky-dusk     { background:linear-gradient(to bottom,#1a0a2e 0%,#6b1a00 30%,#c45a00 60%,#e8a030 100%); }
+  #sky-sunset   { background:linear-gradient(to bottom,#0d0020 0%,#4a0a00 25%,#c03000 50%,#e87020 75%,#f0b040 100%); }
+  #sky-evening  { background:radial-gradient(ellipse at 50% 0%,#3D1A00 0%,#1A0800 40%,#0D0500 100%); }
+
+  .sun { position:fixed; z-index:2; width:60px; height:60px; border-radius:50%;
+    background:radial-gradient(circle,#fff8d0 0%,#ffd060 40%,#ff8c00 100%);
+    box-shadow:0 0 40px 20px rgba(255,200,50,.5),0 0 80px 40px rgba(255,150,0,.3);
+    transition:opacity 3s ease; pointer-events:none; }
+
+  .stars { position:fixed; inset:0; z-index:1; pointer-events:none; }
+  .star  { position:absolute; background:white; border-radius:50%; animation:twinkle var(--dur) ease-in-out infinite; animation-delay:var(--delay); }
+  @keyframes twinkle { 0%,100%{opacity:var(--min-op);transform:scale(1)} 50%{opacity:1;transform:scale(1.3)} }
+
+  .lantern-row { position:fixed; top:0; left:-5%; width:110%; z-index:3; pointer-events:none; }
+  svg.string-line { width:100%; height:130px; display:block; }
+  .lantern { position:absolute; top:0; transform-origin:top center; animation:sway 4s ease-in-out infinite; }
+  .lantern:nth-child(odd){animation-direction:alternate} .lantern:nth-child(even){animation-delay:-2s}
+  @keyframes sway { 0%{transform:rotate(-5deg)} 100%{transform:rotate(5deg)} }
+  .lantern-glow-halo { position:absolute; border-radius:50%; background:radial-gradient(circle,var(--glow) 0%,transparent 70%); opacity:.5; animation:pulse-glow 2.5s ease-in-out infinite; pointer-events:none; }
+  @keyframes pulse-glow { 0%,100%{opacity:.3;transform:scale(.85)} 50%{opacity:.65;transform:scale(1.15)} }
+
+  /* Moon widget — centred hero, sits at top of page content */
+  .moon-widget {
+    position:relative; z-index:30; cursor:pointer;
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+    animation:moon-float 6s ease-in-out infinite;
+    transition:opacity 3s ease;
+    margin-top:16px; margin-bottom:28px;
+  }
+  .moon-halo {
+    position:absolute;
+    width:260px; height:260px; border-radius:50%;
+    background:radial-gradient(circle, rgba(201,146,42,0.20) 0%, rgba(201,146,42,0.08) 45%, transparent 72%);
+    top:50%; left:50%; transform:translate(-50%,-52%);
+    pointer-events:none;
+    animation:halo-pulse 5s ease-in-out infinite;
+  }
+  @keyframes halo-pulse {
+    0%,100%{ opacity:.55; transform:translate(-50%,-52%) scale(1); }
+    50%    { opacity:1;   transform:translate(-50%,-52%) scale(1.08); }
+  }
+  @keyframes moon-float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+  .moon-canvas {
+    filter:drop-shadow(0 0 30px rgba(255,220,120,.9)) drop-shadow(0 0 70px rgba(255,180,60,.4));
+    display:block; position:relative; z-index:1;
+  }
+  .moon-day-label {
+    font-family:'Cinzel',serif; font-size:.72rem; letter-spacing:.28em;
+    color:rgba(245,217,138,.8); text-transform:uppercase; text-align:center;
+    white-space:nowrap; position:relative; z-index:1;
+  }
+  .moon-phase-name {
+    font-family:'EB Garamond',serif; font-style:italic; font-size:.85rem;
+    color:rgba(245,217,138,.55); text-align:center; white-space:nowrap;
+    position:relative; z-index:1;
+  }
+
+    /* Fireworks */
+  #fireworks { position:fixed; inset:0; z-index:100; pointer-events:none; }
+
+  /* Iftar banner */
+  #iftarBanner {
+    position:fixed; top:0; left:0; right:0; z-index:200;
+    background:linear-gradient(135deg,#8B2500,#C9922A,#8B2500);
+    color:var(--cream); text-align:center; padding:16px;
+    font-family:'Cinzel',serif; font-size:1.1rem; letter-spacing:.2em;
+    box-shadow:0 4px 30px rgba(201,146,42,.6);
+    transform:translateY(-100%); transition:transform .6s cubic-bezier(.34,1.56,.64,1);
+  }
+  #iftarBanner.show { transform:translateY(0); }
+  #iftarBanner .banner-arabic { font-family:'Lateef',serif; font-size:1.8rem; display:block; }
+
+  .container { position:relative; z-index:10; min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:100px 20px 60px; }
+  .title-block { text-align:center; margin-bottom:40px; animation:fadeDown 1s ease both; }
+  @keyframes fadeDown { from{opacity:0;transform:translateY(-20px)} to{opacity:1;transform:translateY(0)} }
+  .arabic-title  { font-family:'Lateef',serif; font-size:3.2rem; color:var(--gold-pale); text-shadow:0 0 30px rgba(201,146,42,.6); display:block; }
+  .english-title { font-family:'Cinzel',serif; font-size:1rem; color:var(--gold); letter-spacing:.35em; text-transform:uppercase; opacity:.85; margin-top:4px; }
+  .divider { width:120px; height:1px; background:linear-gradient(to right,transparent,var(--gold),transparent); margin:14px auto; }
+
+  .search-card { background:rgba(45,26,0,.7); border:1px solid rgba(201,146,42,.3); border-radius:16px; padding:28px 32px; width:100%; max-width:480px; backdrop-filter:blur(10px); animation:fadeUp 1s ease .2s both; box-shadow:0 8px 40px rgba(0,0,0,.5),inset 0 1px 0 rgba(201,146,42,.2); }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+  .search-label { font-family:'Cinzel',serif; font-size:.7rem; letter-spacing:.25em; color:var(--gold); text-transform:uppercase; display:block; margin-bottom:10px; }
+  .search-row { display:flex; gap:10px; }
+  .city-select { flex:1; background:rgba(255,255,255,.06); border:1px solid rgba(201,146,42,.4); border-radius:10px; padding:12px 16px; color:var(--cream); font-family:'EB Garamond',serif; font-size:1.05rem; outline:none; cursor:pointer; appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23C9922A' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; padding-right:36px; transition:border-color .3s,box-shadow .3s; }
+  .city-select:focus { border-color:var(--gold); box-shadow:0 0 12px rgba(201,146,42,.25); }
+  .city-select option { background:#2D1A00; color:var(--cream); }
+  .city-select optgroup { background:#1A0E00; color:var(--gold); font-style:normal; font-size:.85rem; }
+  .search-btn { background:linear-gradient(135deg,var(--gold) 0%,#A87820 100%); border:none; border-radius:10px; padding:12px 20px; color:var(--warm-dark); font-family:'Cinzel',serif; font-size:.8rem; letter-spacing:.1em; cursor:pointer; transition:transform .2s,box-shadow .2s,filter .2s; font-weight:600; white-space:nowrap; }
+  .search-btn:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(201,146,42,.45); filter:brightness(1.1); }
+  .locate-row { margin-top:12px; text-align:center; }
+  .locate-btn { background:transparent; border:1px solid rgba(201,146,42,.35); border-radius:8px; padding:8px 18px; color:var(--gold-pale); font-family:'EB Garamond',serif; font-size:.9rem; font-style:italic; cursor:pointer; transition:all .25s; opacity:.8; }
+  .locate-btn:hover { border-color:var(--gold); color:var(--gold-light); background:rgba(201,146,42,.08); opacity:1; }
+  .locate-btn:disabled { opacity:.4; cursor:default; }
+
+  .results { width:100%; max-width:480px; margin-top:24px; animation:fadeUp .6s ease both; }
+  .date-header { text-align:center; margin-bottom:20px; }
+  .city-name { font-family:'Cinzel',serif; color:var(--gold-light); font-size:1.3rem; letter-spacing:.1em; display:block; margin-bottom:4px; }
+  .date-text  { font-style:italic; color:var(--gold-pale); font-size:1.1rem; opacity:.85; }
+  .time-cards { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:20px; }
+  .time-card  { background:rgba(45,26,0,.75); border-radius:16px; padding:24px 20px; text-align:center; border:1px solid rgba(201,146,42,.25); backdrop-filter:blur(10px); box-shadow:0 4px 24px rgba(0,0,0,.4); transition:transform .3s,box-shadow .3s; position:relative; overflow:hidden; }
+  .time-card::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,rgba(201,146,42,.07) 0%,transparent 60%); pointer-events:none; }
+  .time-card:hover { transform:translateY(-4px); box-shadow:0 8px 32px rgba(0,0,0,.5),0 0 20px rgba(201,146,42,.15); }
+  .card-icon    { font-size:2rem; display:block; margin-bottom:10px; }
+  .card-label   { font-family:'Cinzel',serif; font-size:.65rem; letter-spacing:.3em; color:var(--gold); text-transform:uppercase; display:block; margin-bottom:8px; }
+  .card-time    { font-family:'Lateef',serif; font-size:2.4rem; color:var(--cream); text-shadow:0 0 20px rgba(245,217,138,.4); display:block; }
+  .card-sublabel{ font-style:italic; color:rgba(245,217,138,.5); font-size:.8rem; margin-top:6px; display:block; }
+  .countdown-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px; }
+  .countdown-chip { background:rgba(201,146,42,.12); border:1px solid rgba(201,146,42,.2); border-radius:12px; padding:14px 10px; text-align:center; }
+  .countdown-chip .chip-label { font-family:'Cinzel',serif; font-size:.58rem; letter-spacing:.18em; color:var(--gold); display:block; margin-bottom:6px; }
+  .countdown-chip .chip-time  { font-family:'Lateef',serif; font-size:1.65rem; color:var(--cream); line-height:1.1; display:block; white-space:nowrap; }
+  .countdown-chip.active { background:rgba(201,146,42,.22); border-color:rgba(201,146,42,.5); box-shadow:0 0 14px rgba(201,146,42,.2); }
+  .countdown-chip.active .chip-label { color:var(--gold-light); }
+  .extra-times { background:rgba(45,26,0,.6); border:1px solid rgba(201,146,42,.15); border-radius:12px; padding:16px 20px; }
+  .extra-row { display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid rgba(201,146,42,.08); }
+  .extra-row:last-child { border-bottom:none; }
+  .extra-name { font-family:'Cinzel',serif; font-size:.7rem; letter-spacing:.15em; color:var(--gold); }
+  .extra-time { font-family:'EB Garamond',serif; color:var(--cream); font-size:1rem; }
+  .error-msg { text-align:center; color:#E8866B; font-style:italic; padding:16px; font-size:.95rem; }
+  .loading { text-align:center; color:var(--gold-pale); font-style:italic; padding:20px; animation:pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:.5} 50%{opacity:1} }
+  .hidden { display:none; }
+  /* Eid countdown */
+  .eid-block {
+    width:100%; max-width:480px; margin-top:20px;
+    background:rgba(45,26,0,.7); border:1px solid rgba(201,146,42,.3);
+    border-radius:16px; padding:24px 24px 20px;
+    backdrop-filter:blur(10px);
+    box-shadow:0 4px 24px rgba(0,0,0,.4), inset 0 1px 0 rgba(201,146,42,.15);
+    animation:fadeUp .8s ease .1s both;
+    text-align:center;
+  }
+  .eid-title {
+    font-family:'Cinzel',serif; font-size:.7rem; letter-spacing:.3em;
+    color:var(--gold); text-transform:uppercase; display:block; margin-bottom:4px;
+  }
+  .eid-arabic {
+    font-family:'Lateef',serif; font-size:1.8rem; color:var(--gold-pale);
+    text-shadow:0 0 20px rgba(201,146,42,.5); display:block; margin-bottom:12px;
+  }
+  .eid-countdown-display {
+    display:flex; justify-content:center; gap:12px; margin-bottom:18px; flex-wrap:wrap;
+  }
+  .eid-unit {
+    display:flex; flex-direction:column; align-items:center; min-width:52px;
+  }
+  .eid-num {
+    font-family:'Lateef',serif; font-size:2.6rem; color:var(--cream);
+    text-shadow:0 0 20px rgba(245,217,138,.5); line-height:1;
+  }
+  .eid-unit-label {
+    font-family:'Cinzel',serif; font-size:.55rem; letter-spacing:.2em;
+    color:var(--gold); text-transform:uppercase; margin-top:2px;
+  }
+  .eid-sep {
+    font-family:'Lateef',serif; font-size:2.2rem; color:rgba(201,146,42,.4);
+    align-self:flex-start; padding-top:4px;
+  }
+  .eid-date-row {
+    display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap;
+  }
+  .eid-date-label {
+    font-family:'Cinzel',serif; font-size:.62rem; letter-spacing:.18em;
+    color:rgba(245,217,138,.55); text-transform:uppercase;
+  }
+  .eid-date-input {
+    background:rgba(255,255,255,.06); border:1px solid rgba(201,146,42,.35);
+    border-radius:8px; padding:6px 12px; color:var(--cream);
+    font-family:'EB Garamond',serif; font-size:.95rem;
+    outline:none; cursor:pointer; transition:border-color .25s;
+    color-scheme: dark;
+  }
+  .eid-date-input:focus { border-color:var(--gold); }
+  .eid-arrived {
+    font-family:'Lateef',serif; font-size:2rem; color:var(--gold-pale);
+    text-shadow:0 0 30px rgba(201,146,42,.8); display:block;
+  }
+
+  .footer-dua { margin-top:40px; text-align:center; opacity:.45; }
+  .footer-dua span { font-family:'Lateef',serif; font-size:1.4rem; color:var(--gold-pale); }
+  .sky-label { position:fixed; bottom:16px; right:16px; z-index:20; font-family:'Cinzel',serif; font-size:.6rem; letter-spacing:.15em; color:rgba(245,217,138,.3); text-transform:uppercase; }
+  .method-row { margin-top:12px; }
+  .method-select { width:100%; background:rgba(255,255,255,.04); border:1px solid rgba(201,146,42,.25); border-radius:8px; padding:8px 14px; color:rgba(245,217,138,.7); font-family:'EB Garamond',serif; font-size:.88rem; font-style:italic; outline:none; cursor:pointer; appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23C9922A' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:32px; transition:border-color .25s; }
+  .method-select:focus { border-color:rgba(201,146,42,.6); }
+  .method-select option, .method-select optgroup { background:#1A0E00; color:var(--cream); }
+
+  .test-btn { margin-top:20px; background:transparent; border:1px dashed rgba(201,146,42,.35); border-radius:8px; padding:8px 20px; color:rgba(245,217,138,.45); font-family:'EB Garamond',serif; font-size:.85rem; font-style:italic; cursor:pointer; transition:all .2s; }
+  .test-btn:hover { border-color:rgba(201,146,42,.8); color:rgba(245,217,138,.9); }
+
+  /* ── Eid easter egg ── */
+  #eidOverlayFull {
+    position:fixed; inset:0; z-index:500; pointer-events:none;
+    background:linear-gradient(135deg, #003820 0%, #005530 40%, #001a0e 100%);
+    opacity:0; transition:opacity 1.2s ease;
+  }
+  #eidOverlayFull.show { opacity:1; pointer-events:all; }
+
+  #eidMessage {
+    position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+    z-index:600; text-align:center; pointer-events:none;
+    opacity:0; transition:opacity .8s ease .6s;
+  }
+  #eidMessage.show { opacity:1; }
+
+  .eid-msg-arabic {
+    font-family:'Lateef',serif; font-size:5rem; color:#F5D98A;
+    text-shadow:0 0 60px rgba(255,220,80,1), 0 0 120px rgba(255,180,0,.6);
+    display:block; animation:eid-pulse 2s ease-in-out infinite;
+  }
+  .eid-msg-english {
+    font-family:'Cinzel',serif; font-size:1.1rem; letter-spacing:.4em;
+    color:#C9E8A0; text-transform:uppercase; display:block; margin-top:12px;
+    text-shadow:0 0 20px rgba(150,255,150,.5);
+  }
+  .eid-msg-sub {
+    font-family:'EB Garamond',serif; font-style:italic; font-size:1rem;
+    color:rgba(245,217,138,.6); display:block; margin-top:8px;
+  }
+  @keyframes eid-pulse {
+    0%,100%{ text-shadow:0 0 40px rgba(255,220,80,.8), 0 0 80px rgba(255,180,0,.4); }
+    50%    { text-shadow:0 0 80px rgba(255,220,80,1),  0 0 160px rgba(255,180,0,.7); }
+  }
+
+  #moonWidget.eid-flyoff {
+    transition: transform 2s cubic-bezier(.4,0,.2,1), opacity 1.5s ease 0.3s !important;
+    transform: translateY(-130vh) rotate(40deg) scale(1.5) !important;
+    opacity: 0 !important;
+    animation: none !important;
+  }
+
+  .eid-dismiss {
+    position:fixed; bottom:40px; left:50%; transform:translateX(-50%);
+    z-index:700; background:rgba(0,80,40,.8); border:1px solid rgba(150,255,150,.5);
+    border-radius:24px; padding:12px 32px; color:#C9E8A0;
+    font-family:'Cinzel',serif; font-size:.75rem; letter-spacing:.2em;
+    cursor:pointer; pointer-events:none; opacity:0;
+    transition:opacity .6s ease 1.5s, background .2s;
+  }
+  .eid-dismiss.show { opacity:1; pointer-events:all; }
+  .eid-dismiss:hover { background:rgba(0,130,60,.9); }
+</style>
+</head>
+<body>
+
+<!-- Sky layers -->
+<div class="sky-layer" id="sky-night"     style="opacity:1"></div>
+<div class="sky-layer" id="sky-predawn"   style="opacity:0"></div>
+<div class="sky-layer" id="sky-dawn"      style="opacity:0"></div>
+<div class="sky-layer" id="sky-morning"   style="opacity:0"></div>
+<div class="sky-layer" id="sky-day"       style="opacity:0"></div>
+<div class="sky-layer" id="sky-afternoon" style="opacity:0"></div>
+<div class="sky-layer" id="sky-dusk"      style="opacity:0"></div>
+<div class="sky-layer" id="sky-sunset"    style="opacity:0"></div>
+<div class="sky-layer" id="sky-evening"   style="opacity:0"></div>
+
+<div class="sun" id="sun" style="opacity:0;top:80%;left:50%"></div>
+<div class="stars" id="stars"></div>
+<canvas id="fireworks"></canvas>
+
+<div id="iftarBanner">
+  <span class="banner-arabic">🌙 وقت الإفطار 🌙</span>
+  Iftar Time — Mubarak! Break your fast with joy
+</div>
+
+<!-- Eid full-screen overlay -->
+<div id="eidOverlayFull"></div>
+<div id="eidMessage">
+  <span class="eid-msg-arabic">عيد مبارك</span>
+  <span class="eid-msg-english">Eid al-Fitr Mubarak</span>
+  <span class="eid-msg-sub">May your Eid be filled with joy, peace & blessings 🌙</span>
+</div>
+<button class="eid-dismiss" id="eidDismiss" onclick="dismissEid()">✦ Continue to app ✦</button>
+
+<div class="lantern-row" id="lanternRow">
+  <svg class="string-line" id="stringSvg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+    <path id="stringPath" stroke="rgba(180,140,60,0.5)" stroke-width="1" fill="none"/>
+  </svg>
+</div>
+
+<div class="sky-label" id="skyLabel"></div>
+
+<div class="container">
+  <!-- Moon widget — centred hero at top -->
+  <div class="moon-widget" id="moonWidget">
+    <div class="moon-halo"></div>
+    <canvas class="moon-canvas" id="moonCanvas" width="120" height="120"></canvas>
+    <div class="moon-day-label" id="moonDayLabel">Day 1 of Ramadan</div>
+    <div class="moon-phase-name" id="moonPhaseName">New Crescent</div>
+  </div>
+
+  <div class="title-block">
+    <span class="arabic-title">رمضان كريم</span>
+    <div class="divider"></div>
+    <span class="english-title">The Ramadan Clock</span>
+  </div>
+
+  <div class="search-card">
+    <span class="search-label">Select your city</span>
+    <div class="search-row">
+      <select class="city-select" id="citySelect">
+        <option value="" disabled selected>Choose a city…</option>
+        <optgroup label="Southeast Asia">
+          <option value="Singapore">Singapore</option>
+          <option value="Kuala Lumpur">Kuala Lumpur</option>
+          <option value="Jakarta">Jakarta</option>
+          <option value="Bangkok">Bangkok</option>
+          <option value="Manila">Manila</option>
+        </optgroup>
+        <optgroup label="South Asia">
+          <option value="Dhaka">Dhaka</option>
+          <option value="Karachi">Karachi</option>
+          <option value="Lahore">Lahore</option>
+          <option value="Islamabad">Islamabad</option>
+          <option value="Mumbai">Mumbai</option>
+          <option value="New Delhi">New Delhi</option>
+          <option value="Colombo">Colombo</option>
+        </optgroup>
+        <optgroup label="Middle East">
+          <option value="Dubai">Dubai</option>
+          <option value="Abu Dhabi">Abu Dhabi</option>
+          <option value="Riyadh">Riyadh</option>
+          <option value="Jeddah">Jeddah</option>
+          <option value="Mecca">Mecca</option>
+          <option value="Doha">Doha</option>
+          <option value="Kuwait City">Kuwait City</option>
+          <option value="Muscat">Muscat</option>
+          <option value="Istanbul">Istanbul</option>
+          <option value="Cairo">Cairo</option>
+          <option value="Amman">Amman</option>
+          <option value="Beirut">Beirut</option>
+          <option value="Baghdad">Baghdad</option>
+          <option value="Tehran">Tehran</option>
+        </optgroup>
+        <optgroup label="Africa">
+          <option value="Lagos">Lagos</option>
+          <option value="Nairobi">Nairobi</option>
+          <option value="Casablanca">Casablanca</option>
+          <option value="Tunis">Tunis</option>
+          <option value="Algiers">Algiers</option>
+          <option value="Tripoli">Tripoli</option>
+          <option value="Khartoum">Khartoum</option>
+          <option value="Dakar">Dakar</option>
+        </optgroup>
+        <optgroup label="Europe">
+          <option value="London">London</option>
+          <option value="Paris">Paris</option>
+          <option value="Berlin">Berlin</option>
+          <option value="Amsterdam">Amsterdam</option>
+          <option value="Brussels">Brussels</option>
+          <option value="Madrid">Madrid</option>
+          <option value="Rome">Rome</option>
+          <option value="Stockholm">Stockholm</option>
+        </optgroup>
+        <optgroup label="North America">
+          <option value="New York">New York</option>
+          <option value="Los Angeles">Los Angeles</option>
+          <option value="Chicago">Chicago</option>
+          <option value="Toronto">Toronto</option>
+          <option value="Houston">Houston</option>
+          <option value="Washington DC">Washington DC</option>
+          <option value="Detroit">Detroit</option>
+        </optgroup>
+        <optgroup label="Oceania">
+          <option value="Sydney">Sydney</option>
+          <option value="Melbourne">Melbourne</option>
+          <option value="Perth">Perth</option>
+          <option value="Auckland">Auckland</option>
+        </optgroup>
+      </select>
+      <button class="search-btn" onclick="fetchTimes()">Find Times</button>
+    </div>
+    <div class="locate-row">
+      <button class="locate-btn" id="locateBtn" onclick="fetchByLocation()">✦ Use My Location</button>
+    </div>
+    <div class="method-row">
+      <select class="method-select" id="methodSelect">
+        <optgroup label="Global">
+          <option value="2">ISNA — Islamic Society of North America</option>
+          <option value="1">Muslim World League</option>
+          <option value="3">Egyptian General Authority</option>
+        </optgroup>
+        <optgroup label="Middle East">
+          <option value="4">Umm Al-Qura, Mecca (Saudi Arabia)</option>
+          <option value="5">University of Islamic Sciences, Karachi</option>
+          <option value="7">Institute of Geophysics, Tehran</option>
+        </optgroup>
+        <optgroup label="Southeast &amp; South Asia">
+          <option value="11" selected>MUIS — Singapore</option>
+          <option value="17">Majlis Ugama Islam Brunei</option>
+          <option value="20">JAKIM — Malaysia</option>
+        </optgroup>
+        <optgroup label="Europe &amp; Americas">
+          <option value="2">ISNA — North America</option>
+          <option value="15">Diyanet İşleri — Turkey</option>
+          <option value="12">UOIF — France</option>
+        </optgroup>
+        <optgroup label="Africa">
+          <option value="3">Egyptian General Authority</option>
+          <option value="9">Kuwait Awqaf</option>
+        </optgroup>
+      </select>
+    </div>
+    <p style="font-family:'EB Garamond',serif;font-style:italic;font-size:.82rem;color:rgba(245,217,138,.4);text-align:center;margin-top:8px;">If your times don't look right, try a different method</p>
+  </div>
+
+  <div class="results hidden" id="results">
+    <div class="date-header">
+      <span class="city-name" id="cityLabel"></span>
+      <span class="date-text" id="dateLabel"></span>
+    </div>
+    <div class="time-cards">
+      <div class="time-card">
+        <span class="card-icon">☀️</span>
+        <span class="card-label">Suhoor</span>
+        <span class="card-time" id="sehriTime">—</span>
+        <span class="card-sublabel">Fajr · Dawn</span>
+      </div>
+      <div class="time-card">
+        <span class="card-icon">🌙</span>
+        <span class="card-label">Iftar</span>
+        <span class="card-time" id="iftarTime">—</span>
+        <span class="card-sublabel">Maghrib · Sunset</span>
+      </div>
+    </div>
+    <div class="countdown-row">
+      <div class="countdown-chip" id="sehriChip">
+        <span class="chip-label">Until Suhoor</span>
+        <span class="chip-time" id="sehriCountdown">—</span>
+      </div>
+      <div class="countdown-chip" id="iftarChip">
+        <span class="chip-label">Until Iftar</span>
+        <span class="chip-time" id="iftarCountdown">—</span>
+      </div>
+    </div>
+    <div class="extra-times" id="extraTimes"></div>
+  </div>
+
+  <div class="loading hidden" id="loading">✦ Finding prayer times… ✦</div>
+  <div class="error-msg hidden" id="errorMsg"></div>
+
+  <!-- Eid Countdown -->
+  <div class="eid-block" id="eidBlock">
+    <span class="eid-title">Countdown to Eid</span>
+    <span class="eid-arabic">عيد الفطر</span>
+    <div class="eid-countdown-display" id="eidCountdownDisplay">
+      <div class="eid-unit"><span class="eid-num" id="eidDays">—</span><span class="eid-unit-label">Days to Eid</span></div>
+    </div>
+    <div class="eid-date-row">
+      <span class="eid-date-label">Eid al-Fitr date in your city</span>
+      <input type="date" class="eid-date-input" id="eidDateInput">
+    </div>
+  </div>
+
+  <div class="footer-dua"><span>✦ &nbsp; رمضان مبارك &nbsp; ✦</span></div>
+  <button class="test-btn" onclick="showIftarCelebration()">🎆 Preview Iftar celebration</button>
+  <button class="test-btn" onclick="triggerEidEasterEgg()" style="margin-top:8px;">🌙 Preview Eid celebration</button>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════
+// RAMADAN DAY CALCULATOR
+// Ramadan 2025 started ~1 March 2025; 2026 ~20 Feb 2026
+// We calculate based on today's date
+// ════════════════════════════════════════════════════
+function getRamadanDay() {
+  // Known Ramadan 1 start dates (Gregorian)
+  const ramadanStarts = [
+    new Date(2026, 1, 20), // Feb 20 2026
+    new Date(2025, 2, 1),  // Mar 1 2025
+    new Date(2024, 2, 11), // Mar 11 2024
+  ];
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  for (const start of ramadanStarts) {
+    const s = new Date(start); s.setHours(0,0,0,0);
+    const diff = Math.floor((today - s) / 86400000);
+    if (diff >= 0 && diff < 30) return diff + 1; // day 1–30
+  }
+  // fallback: simulate based on day of year so moon always shows
+  const dayOfYear = Math.floor((today - new Date(today.getFullYear(),0,0)) / 86400000);
+  return (dayOfYear % 30) + 1;
+}
+
+// Phase name for a given Ramadan day (1–30)
+function getPhaseName(day) {
+  if (day <= 2)  return 'New Crescent';
+  if (day <= 6)  return 'Waxing Crescent';
+  if (day <= 9)  return 'First Quarter';
+  if (day <= 13) return 'Waxing Gibbous';
+  if (day <= 16) return 'Full Moon';
+  if (day <= 20) return 'Waning Gibbous';
+  if (day <= 23) return 'Last Quarter';
+  if (day <= 27) return 'Waning Crescent';
+  return 'Old Crescent';
+}
+
+// ════════════════════════════════════════════════════
+// MOON PHASE RENDERER (Canvas)
+// day 1 = thin crescent right, day 15 = full, day 30 = thin crescent left
+// ════════════════════════════════════════════════════
+function drawMoonPhase(canvas, day) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const cx = W/2, cy = H/2, r = W/2 - 6;
+  ctx.clearRect(0, 0, W, H);
+
+  // phase: 0=new crescent(day1), 0.5=full(day15), 1=back to new(day30)
+  const phase = (day - 1) / 29;
+
+  // Moon gradient (lit surface)
+  const moonGrad = ctx.createRadialGradient(cx - r*0.15, cy - r*0.15, r*0.05, cx, cy, r);
+  moonGrad.addColorStop(0,   '#FFF8D0');
+  moonGrad.addColorStop(0.4, '#F0D060');
+  moonGrad.addColorStop(0.8, '#C9A030');
+  moonGrad.addColorStop(1,   '#8B6010');
+
+  // --- Draw using pixel-row technique for accuracy ---
+  // For each row, calculate the lit x-span
+  // The moon circle: x^2 + y^2 = r^2
+  // The terminator is an ellipse with x-radius = r * |cos(angle)|
+  // angle goes: day1=~170deg(tiny crescent) → day15=0deg(full) → day30=~170deg other side
+
+  // Map phase to angle: 0→π (terminator ellipse x-radius = r*cos(angle))
+  // phase=0 → angle=π (cos=-1 → terminator at left edge, right crescent lit)
+  // phase=0.5 → angle=π/2 (cos=0 → full circle lit)  
+  // phase=1 → angle=0 (cos=1 → terminator at right edge, left crescent lit)
+  const angle = Math.PI * (1 - phase); // π to 0
+  const termX = Math.cos(angle); // -1 to 1 (terminator ellipse x-scale)
+  const waxing = phase <= 0.5;
+
+  // Draw dark base
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.fillStyle = '#07001a';
+  ctx.fill();
+
+  // Clip to moon circle
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.clip();
+
+  // Draw lit half (always the right semicircle for waxing, left for waning)
+  // Then overlay the terminator ellipse as shadow or extra light
+  if (waxing) {
+    // Right half lit
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, -Math.PI/2, Math.PI/2);
+    ctx.lineTo(cx, cy);
+    ctx.closePath();
+    ctx.fillStyle = moonGrad;
+    ctx.fill();
+
+    // Terminator: ellipse of x-width = r*|termX|
+    // When termX < 0 (day 1-7): shadow covers right, shrinking crescent
+    // When termX > 0 (day 8-14): extra light expands onto left side
+    if (termX < 0) {
+      // Dark ellipse cuts into right side — draw over lit area
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(Math.abs(termX), 1);
+      ctx.beginPath();
+      ctx.arc(0, 0, r, -Math.PI/2, Math.PI/2);
+      ctx.lineTo(0, 0);
+      ctx.closePath();
+      ctx.fillStyle = '#07001a';
+      ctx.fill();
+      ctx.restore();
+    } else {
+      // Lit ellipse adds to left side
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(termX, 1);
+      ctx.beginPath();
+      ctx.arc(0, 0, r, Math.PI/2, -Math.PI/2);
+      ctx.lineTo(0, 0);
+      ctx.closePath();
+      ctx.fillStyle = moonGrad;
+      ctx.fill();
+      ctx.restore();
+    }
+  } else {
+    // Left half lit (waning)
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, Math.PI/2, -Math.PI/2);
+    ctx.lineTo(cx, cy);
+    ctx.closePath();
+    ctx.fillStyle = moonGrad;
+    ctx.fill();
+
+    if (termX > 0) {
+      // Dark ellipse cuts into left side
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(termX, 1);
+      ctx.beginPath();
+      ctx.arc(0, 0, r, Math.PI/2, -Math.PI/2);
+      ctx.lineTo(0, 0);
+      ctx.closePath();
+      ctx.fillStyle = '#07001a';
+      ctx.fill();
+      ctx.restore();
+    } else {
+      // Lit ellipse adds to right side
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.scale(Math.abs(termX), 1);
+      ctx.beginPath();
+      ctx.arc(0, 0, r, -Math.PI/2, Math.PI/2);
+      ctx.lineTo(0, 0);
+      ctx.closePath();
+      ctx.fillStyle = moonGrad;
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // Subtle craters on lit surface
+  const craters = [{x:-.22,y:-.28,r:.08},{x:.18,y:.18,r:.055},{x:-.08,y:.33,r:.065},{x:.28,y:-.22,r:.045},{x:.05,y:-.1,r:.035}];
+  ctx.globalAlpha = 0.13;
+  for (const c of craters) {
+    ctx.beginPath();
+    ctx.arc(cx + c.x*r, cy + c.y*r, c.r*r, 0, Math.PI*2);
+    ctx.fillStyle = '#5a3800';
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  // Rim
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.strokeStyle = 'rgba(180,140,60,0.2)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Outer glow
+  const glow = ctx.createRadialGradient(cx, cy, r*0.85, cx, cy, r*1.4);
+  glow.addColorStop(0, 'rgba(255,220,100,0.0)');
+  glow.addColorStop(0.5, 'rgba(255,200,60,0.10)');
+  glow.addColorStop(1,   'rgba(255,180,30,0.0)');
+  ctx.beginPath();
+  ctx.arc(cx, cy, r*1.4, 0, Math.PI*2);
+  ctx.fillStyle = glow;
+  ctx.fill();
+}
+
+
+function initMoon() {
+  const day = getRamadanDay();
+  const canvas = document.getElementById('moonCanvas');
+  drawMoonPhase(canvas, day);
+  document.getElementById('moonDayLabel').textContent = `Day ${day} of Ramadan`;
+  document.getElementById('moonPhaseName').textContent = getPhaseName(day);
+
+  // Click moon to test fireworks
+  document.getElementById('moonWidget').addEventListener('click', showIftarCelebration);
+}
+
+// ════════════════════════════════════════════════════
+// STARS
+// ════════════════════════════════════════════════════
+const starsEl = document.getElementById('stars');
+for (let i=0;i<140;i++){
+  const s=document.createElement('div'); s.className='star';
+  const sz=Math.random()*2.5+0.5;
+  s.style.cssText=`width:${sz}px;height:${sz}px;top:${Math.random()*80}%;left:${Math.random()*100}%;--dur:${2+Math.random()*4}s;--delay:${Math.random()*4}s;--min-op:${0.1+Math.random()*0.4}`;
+  starsEl.appendChild(s);
+}
+
+// ════════════════════════════════════════════════════
+// LANTERNS
+// ════════════════════════════════════════════════════
+// Turkish kandil lantern colours — rich jewel-toned glass
+const LC = [
+  {glass:'#8B0000', glassHi:'#FF6060', metal:'#B8922A', glow:'rgba(255,80,60,.7)'},
+  {glass:'#004080', glassHi:'#60B0FF', metal:'#C9A030', glow:'rgba(60,140,255,.65)'},
+  {glass:'#006030', glassHi:'#50E090', metal:'#B89020', glow:'rgba(50,200,100,.6)'},
+  {glass:'#6B0080', glassHi:'#D070FF', metal:'#C0902A', glow:'rgba(180,80,255,.65)'},
+  {glass:'#804000', glassHi:'#FFB040', metal:'#C9922A', glow:'rgba(255,160,40,.7)'},
+];
+
+// Turkish kandil: tall hexagonal glass lantern with ornate brass frame
+function starLanternSVG(col, size) {
+  const W = size;
+  const H = Math.round(size * 2.6); // tall & slender
+  const cx = W / 2;
+
+  // Key y positions
+  const chainLen = H * 0.10;   // hanging chain at top
+  const crownTop = chainLen;
+  const crownH   = H * 0.10;
+  const bodyTop  = crownTop + crownH;
+  const bodyH    = H * 0.58;
+  const bodyBot  = bodyTop + bodyH;
+  const baseH    = H * 0.09;
+  const baseBot  = bodyBot + baseH;
+  const tasselTop= baseBot;
+  const tasselH  = H * 0.13;
+
+  // Body shape: hexagonal facets — draw as 6 vertical panels
+  // Widths: narrow at top, widest at 35%, taper to base
+  const bw = W * 0.82; // max body width
+  const bwTop = W * 0.40;
+  const bwBot = W * 0.30;
+
+  // Body outline path (left then right, curved)
+  const bodyPath = `M ${(cx-bwTop/2).toFixed(1)} ${bodyTop.toFixed(1)}
+    C ${(cx-bw/2-4).toFixed(1)} ${(bodyTop+bodyH*0.25).toFixed(1)}, ${(cx-bw/2).toFixed(1)} ${(bodyTop+bodyH*0.35).toFixed(1)}, ${(cx-bw/2).toFixed(1)} ${(bodyTop+bodyH*0.5).toFixed(1)}
+    C ${(cx-bw/2).toFixed(1)} ${(bodyTop+bodyH*0.72).toFixed(1)}, ${(cx-bwBot/2-2).toFixed(1)} ${(bodyBot-2).toFixed(1)}, ${(cx-bwBot/2).toFixed(1)} ${bodyBot.toFixed(1)}
+    L ${(cx+bwBot/2).toFixed(1)} ${bodyBot.toFixed(1)}
+    C ${(cx+bwBot/2+2).toFixed(1)} ${(bodyBot-2).toFixed(1)}, ${(cx+bw/2).toFixed(1)} ${(bodyTop+bodyH*0.72).toFixed(1)}, ${(cx+bw/2).toFixed(1)} ${(bodyTop+bodyH*0.5).toFixed(1)}
+    C ${(cx+bw/2).toFixed(1)} ${(bodyTop+bodyH*0.35).toFixed(1)}, ${(cx+bw/2+4).toFixed(1)} ${(bodyTop+bodyH*0.25).toFixed(1)}, ${(cx+bwTop/2).toFixed(1)} ${bodyTop.toFixed(1)} Z`;
+
+  // Vertical ribs (metal frame lines)
+  const ribMid   = bodyTop + bodyH * 0.5;
+  const ribBotY  = bodyBot;
+  // 5 ribs: left edge, left-mid, centre, right-mid, right edge
+  function ribX(t) {
+    // t=0→left edge, t=0.5→centre, t=1→right edge
+    const topX = cx - bwTop/2 + t * bwTop;
+    const midX = cx - bw/2   + t * bw;
+    const botX = cx - bwBot/2 + t * bwBot;
+    return { top: topX, mid: midX, bot: botX };
+  }
+  let ribs = '';
+  [0, 0.25, 0.5, 0.75, 1].forEach(t => {
+    const rx = ribX(t);
+    ribs += `<line x1="${rx.top.toFixed(1)}" y1="${bodyTop.toFixed(1)}" x2="${rx.mid.toFixed(1)}" y2="${ribMid.toFixed(1)}" stroke="${col.metal}" stroke-width="1.1" opacity="0.9"/>`;
+    ribs += `<line x1="${rx.mid.toFixed(1)}" y1="${ribMid.toFixed(1)}" x2="${rx.bot.toFixed(1)}" y2="${ribBotY.toFixed(1)}" stroke="${col.metal}" stroke-width="1.1" opacity="0.9"/>`;
+  });
+
+  // Horizontal belt rings at 30%, 55%, 75%
+  let belts = '';
+  [0.30, 0.55, 0.75].forEach(f => {
+    const by = bodyTop + bodyH * f;
+    // approximate width at that y
+    const t2 = f < 0.5 ? f/0.5 : (1-f)/0.5;
+    const beltW = (bwTop/2 + (bw/2 - bwTop/2) * Math.min(f/0.35,1)) * 2 * 0.97;
+    belts += `<ellipse cx="${cx.toFixed(1)}" cy="${by.toFixed(1)}" rx="${(beltW/2).toFixed(1)}" ry="2.2" fill="${col.metal}" opacity="0.85"/>`;
+  });
+
+  // Crown: stepped pyramid top
+  const crownPath = `M ${cx.toFixed(1)} ${crownTop.toFixed(1)}
+    L ${(cx-W*0.08).toFixed(1)} ${(crownTop+crownH*0.35).toFixed(1)}
+    L ${(cx-bwTop/2*0.9).toFixed(1)} ${(crownTop+crownH*0.65).toFixed(1)}
+    L ${(cx-bwTop/2).toFixed(1)} ${bodyTop.toFixed(1)}
+    L ${(cx+bwTop/2).toFixed(1)} ${bodyTop.toFixed(1)}
+    L ${(cx+bwTop/2*0.9).toFixed(1)} ${(crownTop+crownH*0.65).toFixed(1)}
+    L ${(cx+W*0.08).toFixed(1)} ${(crownTop+crownH*0.35).toFixed(1)} Z`;
+
+  // Base: flared foot
+  const basePath = `M ${(cx-bwBot/2).toFixed(1)} ${bodyBot.toFixed(1)}
+    L ${(cx-bwBot/2-3).toFixed(1)} ${(bodyBot+baseH*0.5).toFixed(1)}
+    L ${(cx-W*0.28).toFixed(1)} ${(bodyBot+baseH).toFixed(1)}
+    L ${(cx+W*0.28).toFixed(1)} ${(bodyBot+baseH).toFixed(1)}
+    L ${(cx+bwBot/2+3).toFixed(1)} ${(bodyBot+baseH*0.5).toFixed(1)}
+    L ${(cx+bwBot/2).toFixed(1)} ${bodyBot.toFixed(1)} Z`;
+
+  // Tassels
+  let tassels = '';
+  const numT = 7;
+  for (let t = 0; t < numT; t++) {
+    const tx = cx - W*0.22 + (t/(numT-1)) * W*0.44;
+    const jitter = (Math.random()-0.5)*3;
+    tassels += `<line x1="${tx.toFixed(1)}" y1="${tasselTop.toFixed(1)}" x2="${(tx+jitter).toFixed(1)}" y2="${(tasselTop+tasselH).toFixed(1)}" stroke="${col.metal}" stroke-width="${t===0||t===numT-1?'0.7':'1'}" stroke-linecap="round" opacity="0.8"/>`;
+    if (t === 0 || t === numT-1 || t === Math.floor(numT/2)) {
+      tassels += `<circle cx="${(tx+jitter).toFixed(1)}" cy="${(tasselTop+tasselH).toFixed(1)}" r="1.8" fill="${col.metal}" opacity="0.9"/>`;
+    }
+  }
+
+  // Chain link
+  const chainPath = `M ${cx.toFixed(1)} 0 L ${cx.toFixed(1)} ${chainLen.toFixed(1)}`;
+
+  // Unique IDs
+  const uid = 'tk' + Math.random().toString(36).slice(2,6);
+
+  // Inner highlight panel (simulate glass facet catch of light)
+  const hiW = bw * 0.28;
+  const hiPath = `M ${(cx-hiW/2).toFixed(1)} ${(bodyTop+bodyH*0.08).toFixed(1)}
+    C ${(cx-hiW/2).toFixed(1)} ${(bodyTop+bodyH*0.08).toFixed(1)}, ${(cx-hiW*0.6).toFixed(1)} ${(bodyTop+bodyH*0.38).toFixed(1)}, ${(cx-hiW*0.3).toFixed(1)} ${(bodyTop+bodyH*0.55).toFixed(1)}
+    L ${(cx+hiW*0.3).toFixed(1)} ${(bodyTop+bodyH*0.55).toFixed(1)}
+    C ${(cx+hiW*0.6).toFixed(1)} ${(bodyTop+bodyH*0.38).toFixed(1)}, ${(cx+hiW/2).toFixed(1)} ${(bodyTop+bodyH*0.08).toFixed(1)}, ${(cx-hiW/2).toFixed(1)} ${(bodyTop+bodyH*0.08).toFixed(1)} Z`;
+
+  return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="glow${uid}" x="-80%" y="-40%" width="260%" height="180%">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <radialGradient id="glass${uid}" cx="35%" cy="30%" r="70%">
+      <stop offset="0%"   stop-color="${col.glassHi}" stop-opacity="0.95"/>
+      <stop offset="40%"  stop-color="${col.glass}"   stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#0a0005"         stop-opacity="0.95"/>
+    </radialGradient>
+    <clipPath id="clip${uid}">
+      <path d="${bodyPath}"/>
+    </clipPath>
+  </defs>
+
+  <!-- Chain -->
+  <line x1="${cx}" y1="0" x2="${cx}" y2="${chainLen.toFixed(1)}" stroke="${col.metal}" stroke-width="1.5" stroke-dasharray="2,2" opacity="0.8"/>
+
+  <!-- Glass body glow (behind) -->
+  <path d="${bodyPath}" fill="${col.glass}" opacity="0.25" filter="url(#glow${uid})"/>
+
+  <!-- Glass body fill -->
+  <path d="${bodyPath}" fill="url(#glass${uid})"/>
+
+  <!-- Light facet highlight -->
+  <path d="${hiPath}" fill="${col.glassHi}" opacity="0.18" clip-path="url(#clip${uid})"/>
+
+  <!-- Metal ribs -->
+  ${ribs}
+
+  <!-- Horizontal belt rings -->
+  ${belts}
+
+  <!-- Crown -->
+  <path d="${crownPath}" fill="${col.metal}" stroke="${col.metal}" stroke-width="0.5" opacity="0.95"/>
+  <!-- Crown tip ornament -->
+  <circle cx="${cx}" cy="${crownTop.toFixed(1)}" r="2.5" fill="${col.metal}" opacity="1"/>
+
+  <!-- Base -->
+  <path d="${basePath}" fill="${col.metal}" opacity="0.95"/>
+
+  <!-- Tassels -->
+  ${tassels}
+</svg>`;
+}
+
+function buildLanterns() {
+  const row = document.getElementById('lanternRow');
+  const count = 9;
+
+  // Draw hanging string
+  let d = 'M -20 15';
+  for (let i = 0; i <= 100; i++) {
+    const x = (i/100)*1200, sag = 35 * Math.sin((i/100)*Math.PI);
+    d += ` L ${x} ${15+sag}`;
+  }
+  document.getElementById('stringPath').setAttribute('d', d);
+  row.querySelectorAll('.lantern').forEach(l => l.remove());
+
+  const size = 36; // lantern width in px (Turkish kandil — tall & slender)
+
+  for (let i = 0; i < count; i++) {
+    const pct = (i + 0.5) / count;
+    const xPct = pct * 110 - 5;
+    const sag = 35 * Math.sin(pct * Math.PI);
+    const col = LC[i % LC.length];
+    const dur = 3.5 + Math.random() * 2;
+    const delay = Math.random() * -4;
+
+    const el = document.createElement('div');
+    el.className = 'lantern';
+    el.style.cssText = `left:${xPct}%;top:${sag+8}px;animation-duration:${dur}s;animation-delay:${delay}s;position:absolute;display:flex;flex-direction:column;align-items:center;`;
+
+    // Glow halo behind lantern
+    const glowSize = size * 2.6;
+    const glowOffset = -(glowSize - size) / 2;
+    el.innerHTML = `
+      <div class="lantern-glow-halo" style="width:${glowSize}px;height:${glowSize}px;top:${glowOffset+8}px;left:${glowOffset}px;--glow:${col.glow};position:absolute;"></div>
+      ${starLanternSVG(col, size)}
+    `;
+    row.appendChild(el);
+  }
+}
+buildLanterns();
+window.addEventListener('resize', buildLanterns);
+
+// ════════════════════════════════════════════════════
+// DYNAMIC SKY
+// ════════════════════════════════════════════════════
+const SKY_PHASES=[
+  {h:0,  layer:'sky-night',    stars:1,   moon:1,   sun:0,  sTop:90,sLeft:50, label:'Deep Night'},
+  {h:3,  layer:'sky-predawn',  stars:.9,  moon:.9,  sun:0,  sTop:90,sLeft:20, label:'Pre-Dawn'},
+  {h:4.5,layer:'sky-dawn',     stars:.4,  moon:.5,  sun:.1, sTop:88,sLeft:10, label:'Dawn · Fajr'},
+  {h:6,  layer:'sky-morning',  stars:.05, moon:.1,  sun:.9, sTop:70,sLeft:15, label:'Sunrise'},
+  {h:8,  layer:'sky-day',      stars:0,   moon:0,   sun:1,  sTop:40,sLeft:30, label:'Morning'},
+  {h:12, layer:'sky-day',      stars:0,   moon:0,   sun:1,  sTop:10,sLeft:50, label:'Noon · Dhuhr'},
+  {h:15, layer:'sky-afternoon',stars:0,   moon:0,   sun:1,  sTop:25,sLeft:70, label:'Afternoon · Asr'},
+  {h:17.5,layer:'sky-dusk',    stars:.1,  moon:.2,  sun:.8, sTop:65,sLeft:85, label:'Dusk'},
+  {h:18.5,layer:'sky-sunset',  stars:.3,  moon:.5,  sun:.3, sTop:80,sLeft:90, label:'Sunset · Maghrib'},
+  {h:19.5,layer:'sky-evening', stars:.8,  moon:.9,  sun:0,  sTop:90,sLeft:95, label:'Evening · Isha'},
+  {h:21, layer:'sky-night',    stars:1,   moon:1,   sun:0,  sTop:90,sLeft:50, label:'Night'},
+];
+const ALL_SKY=['sky-night','sky-predawn','sky-dawn','sky-morning','sky-day','sky-afternoon','sky-dusk','sky-sunset','sky-evening'];
+function lerp(a,b,t){return a+(b-a)*t;}
+function updateSky(){
+  const now=new Date(), h=now.getHours()+now.getMinutes()/60+now.getSeconds()/3600;
+  let prev=SKY_PHASES[SKY_PHASES.length-1], next=SKY_PHASES[0];
+  for(let i=0;i<SKY_PHASES.length;i++){if(SKY_PHASES[i].h<=h)prev=SKY_PHASES[i];else{next=SKY_PHASES[i];break;}}
+  const span=(next.h-prev.h+24)%24||24, elapsed=(h-prev.h+24)%24, t=Math.min(elapsed/span,1);
+  ALL_SKY.forEach(id=>{const el=document.getElementById(id);if(!el)return;let op=0;if(id===prev.layer)op=1-t;if(id===next.layer)op+=t;el.style.opacity=op;});
+  starsEl.style.opacity=lerp(prev.stars,next.stars,t);
+  // moon is now inline in page flow — always visible
+  const sunEl=document.getElementById('sun');
+  sunEl.style.opacity=lerp(prev.sun,next.sun,t);
+  sunEl.style.top=lerp(prev.sTop,next.sTop,t)+'%';
+  sunEl.style.left=lerp(prev.sLeft,next.sLeft,t)+'%';
+  document.getElementById('skyLabel').textContent=prev.label;
+}
+updateSky();
+setInterval(updateSky,10000);
+
+// ════════════════════════════════════════════════════
+// INLINE CONFETTI  (Google-doodle style, bursts from iftar card)
+// ════════════════════════════════════════════════════
+const fwCanvas=document.getElementById('fireworks'); // keep canvas but don't use it for main effect
+fwCanvas.style.display='none';
+
+const CONF_COLORS=['#FFD700','#FF4E50','#FC913A','#F9D62E','#EAE374','#E2F4C7','#A8E6CF','#FF8B94','#C9922A','#E8B84B'];
+const CONF_SHAPES=['●','■','▲','★','🌙','✦','❋','◆'];
+let confActive=false, confTimer=null;
+
+function burstConfetti(originEl, count=90) {
+  const rect = originEl.getBoundingClientRect();
+  const ox = rect.left + rect.width/2;
+  const oy = rect.top + rect.height/2;
+  const scrollY = window.scrollY;
+
+  for(let i=0; i<count; i++){
+    const el=document.createElement('span');
+    const shape=CONF_SHAPES[Math.floor(Math.random()*CONF_SHAPES.length)];
+    const color=CONF_COLORS[Math.floor(Math.random()*CONF_COLORS.length)];
+    const size=10+Math.random()*16;
+    const angle=Math.random()*Math.PI*2;
+    const speed=6+Math.random()*12;
+    const vx=Math.cos(angle)*speed;
+    const vy=Math.sin(angle)*speed - 8; // bias upward
+    const spin=(Math.random()-0.5)*30;
+    const lifetime=900+Math.random()*800;
+
+    el.textContent=shape;
+    el.style.cssText=`
+      position:fixed;
+      left:${ox}px; top:${oy + scrollY}px;
+      font-size:${size}px;
+      color:${color};
+      pointer-events:none;
+      z-index:9999;
+      user-select:none;
+      line-height:1;
+      transform-origin:center;
+      will-change:transform,opacity;
+    `;
+    document.body.appendChild(el);
+
+    let startTime=null;
+    const gravity=0.45;
+    let curVy=vy, curVx=vx, curX=0, curY=0, rot=0;
+
+    function tick(ts){
+      if(!startTime) startTime=ts;
+      const elapsed=ts-startTime;
+      const progress=elapsed/lifetime;
+      if(progress>=1){ el.remove(); return; }
+
+      curVy += gravity;
+      curVx *= 0.985;
+      curX += curVx;
+      curY += curVy;
+      rot += spin;
+
+      const opacity = progress < 0.7 ? 1 : 1 - (progress-0.7)/0.3;
+      el.style.transform=`translate(${curX}px, ${curY}px) rotate(${rot}deg)`;
+      el.style.opacity=opacity;
+      requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+}
+
+function flashIftarCard(){
+  const card = document.querySelector('.time-card:nth-child(2)');
+  if(!card) return;
+  // Inject a Mubarak overlay on the iftar card
+  let overlay = document.getElementById('iftarOverlay');
+  if(!overlay){
+    overlay=document.createElement('div');
+    overlay.id='iftarOverlay';
+    overlay.style.cssText=`
+      position:absolute; inset:0; border-radius:16px; z-index:5;
+      display:flex; flex-direction:column; align-items:center; justify-content:center;
+      background:radial-gradient(ellipse at center, rgba(201,146,42,0.35) 0%, rgba(45,26,0,0.85) 100%);
+      opacity:0; transition:opacity 0.5s ease;
+      pointer-events:none;
+    `;
+    overlay.innerHTML=`
+      <span style="font-family:'Lateef',serif;font-size:1.6rem;color:#F5D98A;text-shadow:0 0 20px rgba(255,220,80,0.9);display:block;">مبارك</span>
+      <span style="font-family:'Cinzel',serif;font-size:0.6rem;letter-spacing:0.25em;color:#E8B84B;text-transform:uppercase;margin-top:4px;">Iftar Mubarak</span>
+    `;
+    card.style.position='relative';
+    card.appendChild(overlay);
+  }
+  // Flash it in
+  requestAnimationFrame(()=>{ overlay.style.opacity='1'; });
+  setTimeout(()=>{ overlay.style.opacity='0'; }, 5000);
+
+  // Pulse the card border gold
+  card.style.transition='box-shadow 0.3s ease, border-color 0.3s ease';
+  card.style.borderColor='rgba(255,220,80,0.9)';
+  card.style.boxShadow='0 0 40px rgba(255,200,50,0.6), 0 0 80px rgba(255,150,0,0.3)';
+  setTimeout(()=>{
+    card.style.borderColor='';
+    card.style.boxShadow='';
+  }, 5000);
+}
+
+function showIftarCelebration(){
+  if(confTimer) clearTimeout(confTimer);
+
+  const banner=document.getElementById('iftarBanner');
+  banner.classList.add('show');
+  setTimeout(()=>banner.classList.remove('show'), 7000);
+
+  flashIftarCard();
+
+  // Find origin: iftar card if visible, else centre of screen
+  const iftarCard = document.querySelector('.time-card:nth-child(2)');
+  const origin = iftarCard || document.body;
+
+  // Immediate big burst
+  burstConfetti(origin, 100);
+
+  // Three follow-up bursts
+  const delays=[600, 1300, 2200];
+  delays.forEach(d=>{
+    confTimer=setTimeout(()=>burstConfetti(origin, 60), d);
+  });
+}
+
+// ════════════════════════════════════════════════════
+// PRAYER TIMES
+// ════════════════════════════════════════════════════
+let timesData=null,countdownInterval=null,iftarTriggered=false;
+function getDateParts(){const today=new Date();return{today,dd:String(today.getDate()).padStart(2,'0'),mm:String(today.getMonth()+1).padStart(2,'0'),yyyy:today.getFullYear()};}
+function showLoading(){document.getElementById('results').classList.add('hidden');document.getElementById('errorMsg').classList.add('hidden');document.getElementById('loading').classList.remove('hidden');}
+function showError(msg){document.getElementById('loading').classList.add('hidden');document.getElementById('errorMsg').classList.remove('hidden');document.getElementById('errorMsg').textContent='✦ '+msg+' ✦';}
+function renderTimes(timings,label,today){
+  timesData=timings; iftarTriggered=false;
+  document.getElementById('loading').classList.add('hidden');
+  document.getElementById('results').classList.remove('hidden');
+  document.getElementById('cityLabel').textContent=label.toUpperCase();
+  const methodEl=document.getElementById('methodSelect');
+  const methodName=methodEl.options[methodEl.selectedIndex].text.split('—')[0].trim();
+  document.getElementById('dateLabel').dataset.method=methodName;
+  document.getElementById('dateLabel').textContent=today.toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('sehriTime').textContent=formatTime(timesData.Fajr);
+  document.getElementById('iftarTime').textContent=formatTime(timesData.Maghrib);
+  const extras=[{name:'Sunrise',key:'Sunrise'},{name:'Dhuhr',key:'Dhuhr'},{name:'Asr',key:'Asr'},{name:'Isha',key:'Isha'}];
+  document.getElementById('extraTimes').innerHTML=extras.map(e=>`<div class="extra-row"><span class="extra-name">${e.name}</span><span class="extra-time">${formatTime(timesData[e.key])}</span></div>`).join('');
+  startCountdown();
+}
+async function fetchTimes(){
+  const city=document.getElementById('citySelect').value; if(!city)return;
+  showLoading();
+  try{
+    const{today,dd,mm,yyyy}=getDateParts();
+    const geoRes=await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(city)}&format=json&limit=1`);
+    const geoData=await geoRes.json();
+    if(!geoData||geoData.length===0)throw new Error('Not found');
+    const{lat,lon}=geoData[0];
+    const method=document.getElementById('methodSelect').value;
+    const res=await fetch(`https://api.aladhan.com/v1/timings/${dd}-${mm}-${yyyy}?latitude=${lat}&longitude=${lon}&method=${method}`);
+    const data=await res.json();
+    if(data.code!==200)throw new Error('Failed');
+    renderTimes(data.data.timings,city,today);
+  }catch(e){showError('Could not load times. Please check your connection and try again.');}
+}
+async function fetchByLocation(){
+  if(!navigator.geolocation){showError('Geolocation not supported.');return;}
+  const btn=document.getElementById('locateBtn'); btn.disabled=true; btn.textContent='✦ Locating…';
+  showLoading();
+  navigator.geolocation.getCurrentPosition(async(pos)=>{
+    const{latitude,longitude}=pos.coords;
+    try{
+      const geoRes=await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`);
+      const geoData=await geoRes.json();
+      const city=geoData.address.city||geoData.address.town||geoData.address.village||geoData.address.county||'Your Location';
+      const{today,dd,mm,yyyy}=getDateParts();
+      const method=document.getElementById('methodSelect').value;
+      const res=await fetch(`https://api.aladhan.com/v1/timings/${dd}-${mm}-${yyyy}?latitude=${latitude}&longitude=${longitude}&method=${method}`);
+      const data=await res.json();
+      if(data.code!==200)throw new Error('Failed');
+      const sel=document.getElementById('citySelect');
+      for(let opt of sel.options){if(opt.value.toLowerCase()===city.toLowerCase()){sel.value=opt.value;break;}}
+      renderTimes(data.data.timings,city,today);
+    }catch(e){showError('Could not fetch times for your location. Please select a city manually.');}
+    btn.disabled=false; btn.textContent='✦ Use My Location';
+  },()=>{
+    document.getElementById('loading').classList.add('hidden');
+    showError('Location access was denied. Please select a city from the list.');
+    btn.disabled=false; btn.textContent='✦ Use My Location';
+  });
+}
+function formatTime(t){if(!t)return'—';const[h,m]=t.split(':').map(Number);const ampm=h>=12?'PM':'AM';return`${h%12||12}:${String(m).padStart(2,'0')} ${ampm}`;}
+function timeStrToSeconds(t){const[h,m]=t.split(':').map(Number);return h*3600+m*60;}
+function startCountdown(){if(countdownInterval)clearInterval(countdownInterval);updateCountdowns();countdownInterval=setInterval(updateCountdowns,1000);}
+function updateCountdowns(){
+  if(!timesData)return;
+  const now=new Date(), nowSecs=now.getHours()*3600+now.getMinutes()*60+now.getSeconds();
+  const sehriDiff=timeStrToSeconds(timesData.Fajr)-nowSecs;
+  const iftarDiff=timeStrToSeconds(timesData.Maghrib)-nowSecs;
+  const sehriEl=document.getElementById('sehriCountdown'), iftarEl=document.getElementById('iftarCountdown');
+  const sehriChip=document.getElementById('sehriChip'), iftarChip=document.getElementById('iftarChip');
+  if(sehriDiff>0){sehriEl.textContent=secsToHMS(sehriDiff);sehriChip.classList.add('active');}
+  else{sehriEl.textContent='Passed';sehriChip.classList.remove('active');}
+  if(iftarDiff>0){iftarEl.textContent=secsToHMS(iftarDiff);iftarChip.classList.add('active');}
+  else{
+    iftarEl.textContent='Passed';iftarChip.classList.remove('active');
+    if(!iftarTriggered&&iftarDiff>-30){iftarTriggered=true;showIftarCelebration();}
+  }
+}
+function secsToHMS(s){const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;return h>0?`${h}h ${m}m ${String(sec).padStart(2,'0')}s`:`${m}m ${String(sec).padStart(2,'0')}s`;}
+
+// Init
+initMoon();
+document.getElementById('methodSelect').addEventListener('change', () => {
+  if (document.getElementById('citySelect').value) fetchTimes();
+});
+
+// ════════════════════════════════════════════════════
+// EID COUNTDOWN
+// ════════════════════════════════════════════════════
+let eidInterval = null;
+
+function getDefaultEidDate() {
+  // Eid al-Fitr 2026: ~March 21 2026 (varies by moon sighting)
+  // Default to Mar 21 2026; user can override
+  const now = new Date();
+  const year = now.getFullYear();
+  // Approximate: Ramadan 2026 starts Feb 20, so Eid ~Mar 21-22
+  if (year === 2026) return '2026-03-21';
+  if (year === 2025) return '2025-03-30';
+  return `${year}-03-21`; // fallback
+}
+
+function initEidCountdown() {
+  const input = document.getElementById('eidDateInput');
+  const saved = localStorage.getItem('eidDate');
+  input.value = saved || getDefaultEidDate();
+  startEidCountdown();
+  input.addEventListener('change', () => {
+    localStorage.setItem('eidDate', input.value);
+    startEidCountdown();
+  });
+}
+
+function startEidCountdown() {
+  if (eidInterval) clearInterval(eidInterval);
+  tickEid();
+  eidInterval = setInterval(tickEid, 1000);
+}
+
+function tickEid() {
+  const input = document.getElementById('eidDateInput');
+  if (!input.value) return;
+  const eidDate = new Date(input.value + 'T00:00:00');
+  const now = new Date();
+  const diff = eidDate - now;
+  const dEl = document.getElementById('eidDays');
+
+  if (diff <= 0) {
+    dEl.textContent = '🌙';
+    document.querySelector('.eid-arabic').textContent = 'عيد مبارك!';
+    if (!eidEasterEggShown) { eidEasterEggShown = true; triggerEidEasterEgg(); }
+    return;
+  }
+  const days = Math.ceil(diff / 86400000);
+  dEl.textContent = days;
+}
+
+initEidCountdown();
+
+// ════════════════════════════════════════════════════
+// EID EASTER EGG
+// ════════════════════════════════════════════════════
+let eidEasterEggShown = false;
+let eidClickConfetti = false;
+
+function triggerEidEasterEgg() {
+  // 1. Moon flies off — reposition to fixed so it escapes container clipping
+  const moon = document.getElementById('moonWidget');
+  const rect = moon.getBoundingClientRect();
+  moon.style.position = 'fixed';
+  moon.style.top = rect.top + 'px';
+  moon.style.left = rect.left + 'px';
+  moon.style.width = rect.width + 'px';
+  moon.style.margin = '0';
+  moon.style.zIndex = '9999';
+  // Force reflow so position is applied before transition
+  moon.getBoundingClientRect();
+  moon.classList.add('eid-flyoff');
+
+  // 2. Page fades to Eid green + start music
+  setTimeout(() => {
+    document.getElementById('eidOverlayFull').classList.add('show');
+    document.getElementById('eidMessage').classList.add('show');
+    document.getElementById('eidDismiss').classList.add('show');
+    startEidMusic();
+  }, 600);
+
+  // 3. Mega confetti cannon — burst from centre
+  const cx = window.innerWidth / 2;
+  const cy = window.innerHeight / 2;
+  const eidColors = ['#FFD700','#C9E8A0','#80FF80','#FFFFFF','#F5D98A','#A0FFB0','#FFF080','#60FF90','#E8B84B','#B0FFD0'];
+  const eidShapes = ['🌙','⭐','✦','★','●','◆','❋','▲','■','✿'];
+
+  function eidBurst(count, spread) {
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('span');
+      const shape = eidShapes[Math.floor(Math.random() * eidShapes.length)];
+      const color = eidColors[Math.floor(Math.random() * eidColors.length)];
+      const size = 12 + Math.random() * 20;
+      const angle = Math.random() * Math.PI * 2;
+      const speed = spread + Math.random() * 14;
+      const vx = Math.cos(angle) * speed;
+      const vy = Math.sin(angle) * speed - 10;
+      const lifetime = 1800 + Math.random() * 1200;
+      const spin = (Math.random() - 0.5) * 40;
+
+      el.textContent = shape;
+      el.style.cssText = `
+        position:fixed; left:${cx}px; top:${cy}px;
+        font-size:${size}px; color:${color};
+        pointer-events:none; z-index:800;
+        user-select:none; line-height:1;
+      `;
+      document.body.appendChild(el);
+
+      let startTime = null, curVx = vx, curVy = vy, curX = 0, curY = 0, rot = 0;
+      function tick(ts) {
+        if (!startTime) startTime = ts;
+        const progress = (ts - startTime) / lifetime;
+        if (progress >= 1) { el.remove(); return; }
+        curVy += 0.5; curVx *= 0.98;
+        curX += curVx; curY += curVy; rot += spin;
+        el.style.transform = `translate(${curX}px,${curY}px) rotate(${rot}deg)`;
+        el.style.opacity = progress < 0.6 ? 1 : 1 - (progress - 0.6) / 0.4;
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    }
+  }
+
+  // Staggered mega bursts
+  eidBurst(120, 8);
+  setTimeout(() => eidBurst(80, 6), 400);
+  setTimeout(() => eidBurst(100, 10), 900);
+  setTimeout(() => eidBurst(80, 7), 1500);
+  setTimeout(() => eidBurst(60, 9), 2200);
+
+  // 4. Enable click-anywhere confetti for 15 seconds
+  eidClickConfetti = true;
+  document.addEventListener('click', onEidClick);
+  setTimeout(() => {
+    eidClickConfetti = false;
+    document.removeEventListener('click', onEidClick);
+  }, 15000);
+}
+
+function onEidClick(e) {
+  if (!eidClickConfetti) return;
+  if (e.target.id === 'eidDismiss') return;
+  const eidColors = ['#FFD700','#C9E8A0','#80FF80','#FFFFFF','#F5D98A','#E8B84B'];
+  const eidShapes = ['🌙','⭐','✦','★','●','✿'];
+  for (let i = 0; i < 18; i++) {
+    const el = document.createElement('span');
+    el.textContent = eidShapes[Math.floor(Math.random() * eidShapes.length)];
+    const size = 10 + Math.random() * 14;
+    const color = eidColors[Math.floor(Math.random() * eidColors.length)];
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 3 + Math.random() * 7;
+    const vx = Math.cos(angle) * speed, vy = Math.sin(angle) * speed - 5;
+    const lifetime = 900 + Math.random() * 500;
+    el.style.cssText = `position:fixed;left:${e.clientX}px;top:${e.clientY}px;font-size:${size}px;color:${color};pointer-events:none;z-index:800;user-select:none;line-height:1;`;
+    document.body.appendChild(el);
+    let st = null, cx = 0, cy = 0, cvx = vx, cvy = vy, rot = 0;
+    function t(ts) {
+      if (!st) st = ts;
+      const p = (ts - st) / lifetime;
+      if (p >= 1) { el.remove(); return; }
+      cvy += 0.4; cx += cvx; cy += cvy; rot += 8;
+      el.style.transform = `translate(${cx}px,${cy}px) rotate(${rot}deg)`;
+      el.style.opacity = p < 0.5 ? 1 : 1 - (p - 0.5) / 0.5;
+      requestAnimationFrame(t);
+    }
+    requestAnimationFrame(t);
+  }
+}
+
+// ════════════════════════════════════════════════════
+// EID MUSIC — Web Audio oud/ney synthesis
+// ════════════════════════════════════════════════════
+let eidAudioCtx = null, eidMusicNodes = [], eidMusicPlaying = false;
+
+// Arabic maqam Rast scale degrees (semitones from root, A3=220Hz)
+// Rast: 0, 2, 3.5, 5, 7, 9, 10.5, 12  (uses quarter-tones approximated)
+const RAST = [0, 2, 3.5, 5, 7, 9, 10.5, 12, 14, 15.5, 17];
+function midiToHz(semis, root=220) { return root * Math.pow(2, semis/12); }
+
+// Pluck a string (oud-like): sharp attack, exponential decay
+function pluckOud(ctx, freq, time, duration=1.2, gain=0.18) {
+  const osc = ctx.createOscillator();
+  const gainNode = ctx.createGain();
+  const filter = ctx.createBiquadFilter();
+
+  osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(freq, time);
+  // Slight pitch bend at attack (oud character)
+  osc.frequency.exponentialRampToValueAtTime(freq * 0.998, time + 0.04);
+
+  filter.type = 'lowpass';
+  filter.frequency.setValueAtTime(1800, time);
+  filter.frequency.exponentialRampToValueAtTime(600, time + duration);
+  filter.Q.value = 2;
+
+  gainNode.gain.setValueAtTime(0, time);
+  gainNode.gain.linearRampToValueAtTime(gain, time + 0.008);
+  gainNode.gain.exponentialRampToValueAtTime(0.001, time + duration);
+
+  osc.connect(filter);
+  filter.connect(gainNode);
+  gainNode.connect(ctx.destination);
+  osc.start(time);
+  osc.stop(time + duration + 0.05);
+  return osc;
+}
+
+// Breathy ney flute note
+function playNey(ctx, freq, time, duration=2.0, gain=0.10) {
+  // Ney = filtered noise + sine blend
+  const bufferSize = ctx.sampleRate * duration;
+  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  for (let i = 0; i < bufferSize; i++) data[i] = (Math.random() * 2 - 1) * 0.3;
+
+  const noise = ctx.createBufferSource();
+  noise.buffer = buffer;
+
+  const bandpass = ctx.createBiquadFilter();
+  bandpass.type = 'bandpass';
+  bandpass.frequency.value = freq;
+  bandpass.Q.value = 18;
+
+  const sine = ctx.createOscillator();
+  sine.type = 'sine';
+  sine.frequency.setValueAtTime(freq, time);
+  // Ney vibrato
+  sine.frequency.setValueAtTime(freq, time + 0.15);
+  sine.frequency.linearRampToValueAtTime(freq * 1.012, time + 0.4);
+  sine.frequency.linearRampToValueAtTime(freq * 0.988, time + 0.7);
+  sine.frequency.linearRampToValueAtTime(freq * 1.008, time + 1.1);
+
+  const gainNode = ctx.createGain();
+  gainNode.gain.setValueAtTime(0, time);
+  gainNode.gain.linearRampToValueAtTime(gain, time + 0.12);
+  gainNode.gain.setValueAtTime(gain, time + duration - 0.3);
+  gainNode.gain.linearRampToValueAtTime(0, time + duration);
+
+  noise.connect(bandpass);
+  bandpass.connect(gainNode);
+  sine.connect(gainNode);
+  gainNode.connect(ctx.destination);
+
+  noise.start(time); noise.stop(time + duration);
+  sine.start(time);  sine.stop(time + duration);
+  return [noise, sine];
+}
+
+// A short celebratory Rast phrase, looped
+function scheduleEidPhrase(ctx, startTime) {
+  const tempo = 0.38; // seconds per beat
+  const root = 220;   // A3
+
+  // Oud melody — ascending then ornamental descent
+  const melody = [
+    [0,1],[2,1],[3.5,0.5],[5,1],[7,1.5],
+    [9,0.5],[10.5,0.5],[12,2],
+    [10.5,0.5],[9,0.5],[7,1],[5,1],
+    [3.5,0.5],[2,0.5],[0,2],
+    [5,0.5],[7,0.5],[9,1],[10.5,0.5],[12,0.5],[14,2],
+    [12,0.5],[10.5,0.5],[9,1],[7,2],
+  ];
+
+  // Ney counter-melody (plays on beats 4,8,12…)
+  const neyNotes = [
+    {beat:4, semi:7, dur:2.2},
+    {beat:8, semi:12, dur:2.8},
+    {beat:14, semi:9, dur:2.0},
+    {beat:20, semi:14, dur:3.0},
+  ];
+
+  // Bass drone on root + 5th (oud bass strings)
+  const droneSemis = [0, 7];
+  droneSemis.forEach(s => {
+    pluckOud(ctx, midiToHz(s - 12, root), startTime, 3.5, 0.12);
+    pluckOud(ctx, midiToHz(s - 12, root), startTime + 8*tempo, 3.5, 0.10);
+    pluckOud(ctx, midiToHz(s - 12, root), startTime + 16*tempo, 3.5, 0.10);
+  });
+
+  // Schedule oud melody
+  let t = startTime;
+  melody.forEach(([semi, beats]) => {
+    pluckOud(ctx, midiToHz(semi, root), t, beats * tempo * 0.9, 0.16);
+    t += beats * tempo;
+  });
+
+  // Schedule ney notes
+  neyNotes.forEach(({beat, semi, dur}) => {
+    playNey(ctx, midiToHz(semi, root) * 2, startTime + beat * tempo, dur, 0.09);
+  });
+
+  return t - startTime; // total phrase duration
+}
+
+function startEidMusic() {
+  if (eidMusicPlaying) return;
+  eidMusicPlaying = true;
+  eidAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+  // Master gain — soft background level
+  const master = eidAudioCtx.createGain();
+  master.gain.setValueAtTime(0, eidAudioCtx.currentTime);
+  master.gain.linearRampToValueAtTime(0.55, eidAudioCtx.currentTime + 2);
+  master.connect(eidAudioCtx.destination);
+
+  // Warm reverb via convolver approximation (delay+feedback)
+  const delay = eidAudioCtx.createDelay(0.5);
+  delay.delayTime.value = 0.28;
+  const feedback = eidAudioCtx.createGain();
+  feedback.gain.value = 0.3;
+  delay.connect(feedback);
+  feedback.connect(delay);
+  delay.connect(master);
+
+  // Patch scheduler to use delay+master
+  const origDest = eidAudioCtx.destination;
+
+  // Loop the phrase
+  let phraseStart = eidAudioCtx.currentTime + 0.2;
+  function loop() {
+    if (!eidMusicPlaying) return;
+    const duration = scheduleEidPhrase(eidAudioCtx, phraseStart);
+    phraseStart += duration + 0.5;
+    // Schedule next loop 1 second before end
+    const msUntilNext = (phraseStart - eidAudioCtx.currentTime - 1) * 1000;
+    setTimeout(loop, Math.max(100, msUntilNext));
+  }
+  loop();
+}
+
+function stopEidMusic() {
+  eidMusicPlaying = false;
+  if (eidAudioCtx) {
+    const gain = eidAudioCtx.createGain();
+    gain.gain.setValueAtTime(1, eidAudioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, eidAudioCtx.currentTime + 1.5);
+    setTimeout(() => {
+      try { eidAudioCtx.close(); } catch(e) {}
+      eidAudioCtx = null;
+    }, 2000);
+  }
+}
+
+function dismissEid() {
+  document.getElementById('eidOverlayFull').classList.remove('show');
+  document.getElementById('eidMessage').classList.remove('show');
+  document.getElementById('eidDismiss').classList.remove('show');
+  stopEidMusic();
+  // Restore moon
+  const moon = document.getElementById('moonWidget');
+  moon.classList.remove('eid-flyoff');
+  moon.style.position = '';
+  moon.style.top = '';
+  moon.style.left = '';
+  moon.style.width = '';
+  moon.style.margin = '';
+  moon.style.zIndex = '';
+  moon.style.transition = '';
+  eidClickConfetti = false;
+  document.removeEventListener('click', onEidClick);
+}
+</script>
+</body>
+</html>
