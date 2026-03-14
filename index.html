@@ -13,25 +13,28 @@
   * { margin:0; padding:0; box-sizing:border-box; }
   body { min-height:100vh; background:var(--warm-dark); font-family:'EB Garamond',serif; overflow-x:hidden; }
 
-  .sky-layer { position:fixed; inset:0; z-index:0; transition:opacity 4s ease; pointer-events:none; }
-  #sky-night    { background:radial-gradient(ellipse at 50% 0%,#1a0533 0%,#0a0118 40%,#020008 100%); }
-  #sky-predawn  { background:radial-gradient(ellipse at 50% 0%,#2d0a3a 0%,#1a0520 50%,#05010c 100%); }
-  #sky-dawn     { background:radial-gradient(ellipse at 50% 10%,#7a2d00 0%,#3d0d00 30%,#1a0500 70%,#060100 100%); }
-  #sky-morning  { background:linear-gradient(to bottom,#1a4a8a 0%,#4a7fc1 30%,#c47a3a 70%,#8b2500 100%); }
-  #sky-day      { background:linear-gradient(to bottom,#1a3a6e 0%,#2e6bb5 40%,#6aa3d5 100%); }
-  #sky-afternoon{ background:linear-gradient(to bottom,#0f2a5a 0%,#1e5090 40%,#4a8ac0 100%); }
-  #sky-dusk     { background:linear-gradient(to bottom,#1a0a2e 0%,#6b1a00 30%,#c45a00 60%,#e8a030 100%); }
-  #sky-sunset   { background:linear-gradient(to bottom,#0d0020 0%,#4a0a00 25%,#c03000 50%,#e87020 75%,#f0b040 100%); }
-  #sky-evening  { background:radial-gradient(ellipse at 50% 0%,#3D1A00 0%,#1A0800 40%,#0D0500 100%); }
+  /* ── Painting backgrounds ── */
+  .bg-layer {
+    position:fixed; inset:0; z-index:0; pointer-events:none;
+    background-size:cover; background-position:center center;
+    background-repeat:no-repeat;
+    opacity:0; transition:opacity 3s ease;
+  }
+  .bg-layer.active { opacity:1; }
 
-  .sun { position:fixed; z-index:2; width:60px; height:60px; border-radius:50%;
-    background:radial-gradient(circle,#fff8d0 0%,#ffd060 40%,#ff8c00 100%);
-    box-shadow:0 0 40px 20px rgba(255,200,50,.5),0 0 80px 40px rgba(255,150,0,.3);
-    transition:opacity 3s ease; pointer-events:none; }
+  /* Parchment texture overlay */
+  #bgTexture {
+    position:fixed; inset:0; z-index:1; pointer-events:none;
+    background-image:url('https://www.transparenttextures.com/patterns/paper-fibers.png');
+    opacity:0.04;
+  }
 
-  .stars { position:fixed; inset:0; z-index:1; pointer-events:none; }
-  .star  { position:absolute; background:white; border-radius:50%; animation:twinkle var(--dur) ease-in-out infinite; animation-delay:var(--delay); }
-  @keyframes twinkle { 0%,100%{opacity:var(--min-op);transform:scale(1)} 50%{opacity:1;transform:scale(1.3)} }
+  /* Dark colour tint per state — sits above painting, below content */
+  #bgTint {
+    position:fixed; inset:0; z-index:2; pointer-events:none;
+    transition:background 3s ease, opacity 3s ease;
+    opacity:0.45;
+  }
 
   .lantern-row { position:fixed; top:0; left:-5%; width:110%; z-index:3; pointer-events:none; }
   svg.string-line { width:100%; height:130px; display:block; }
@@ -109,10 +112,7 @@
   .city-select optgroup { background:#1A0E00; color:var(--gold); font-style:normal; font-size:.85rem; }
   .search-btn { background:linear-gradient(135deg,var(--gold) 0%,#A87820 100%); border:none; border-radius:10px; padding:12px 20px; color:var(--warm-dark); font-family:'Cinzel',serif; font-size:.8rem; letter-spacing:.1em; cursor:pointer; transition:transform .2s,box-shadow .2s,filter .2s; font-weight:600; white-space:nowrap; }
   .search-btn:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(201,146,42,.45); filter:brightness(1.1); }
-  .locate-row { margin-top:12px; text-align:center; }
-  .locate-btn { background:transparent; border:1px solid rgba(201,146,42,.35); border-radius:8px; padding:8px 18px; color:var(--gold-pale); font-family:'EB Garamond',serif; font-size:.9rem; font-style:italic; cursor:pointer; transition:all .25s; opacity:.8; }
-  .locate-btn:hover { border-color:var(--gold); color:var(--gold-light); background:rgba(201,146,42,.08); opacity:1; }
-  .locate-btn:disabled { opacity:.4; cursor:default; }
+
 
   .results { width:100%; max-width:480px; margin-top:24px; animation:fadeUp .6s ease both; }
   .date-header { text-align:center; margin-bottom:20px; }
@@ -199,7 +199,7 @@
 
   .footer-dua { margin-top:40px; text-align:center; opacity:.45; }
   .footer-dua span { font-family:'Lateef',serif; font-size:1.4rem; color:var(--gold-pale); }
-  .sky-label { position:fixed; bottom:16px; right:16px; z-index:20; font-family:'Cinzel',serif; font-size:.6rem; letter-spacing:.15em; color:rgba(245,217,138,.3); text-transform:uppercase; }
+
   .method-row { margin-top:12px; }
   .method-select { width:100%; background:rgba(255,255,255,.04); border:1px solid rgba(201,146,42,.25); border-radius:8px; padding:8px 14px; color:rgba(245,217,138,.7); font-family:'EB Garamond',serif; font-size:.88rem; font-style:italic; outline:none; cursor:pointer; appearance:none; -webkit-appearance:none; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23C9922A' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; padding-right:32px; transition:border-color .25s; }
   .method-select:focus { border-color:rgba(201,146,42,.6); }
@@ -263,19 +263,13 @@
 </head>
 <body>
 
-<!-- Sky layers -->
-<div class="sky-layer" id="sky-night"     style="opacity:1"></div>
-<div class="sky-layer" id="sky-predawn"   style="opacity:0"></div>
-<div class="sky-layer" id="sky-dawn"      style="opacity:0"></div>
-<div class="sky-layer" id="sky-morning"   style="opacity:0"></div>
-<div class="sky-layer" id="sky-day"       style="opacity:0"></div>
-<div class="sky-layer" id="sky-afternoon" style="opacity:0"></div>
-<div class="sky-layer" id="sky-dusk"      style="opacity:0"></div>
-<div class="sky-layer" id="sky-sunset"    style="opacity:0"></div>
-<div class="sky-layer" id="sky-evening"   style="opacity:0"></div>
-
-<div class="sun" id="sun" style="opacity:0;top:80%;left:50%"></div>
-<div class="stars" id="stars"></div>
+<!-- Painting backgrounds -->
+<div class="bg-layer" id="bg-night" style="background-image:url('https://lh3.googleusercontent.com/u/0/d/1icFW9azRRbgqAmUM3kTExdAK1mvHn6c9')"></div>
+<div class="bg-layer" id="bg-dawn"  style="background-image:url('https://lh3.googleusercontent.com/u/0/d/1yqrbQw0DptWl7FT7iF3VQvQwmuJKsOUx')"></div>
+<div class="bg-layer" id="bg-day"   style="background-image:url('https://lh3.googleusercontent.com/u/0/d/1WQsQ2rIokcFW-7E5UqrBS2sHxQ4cRfZb')"></div>
+<div class="bg-layer" id="bg-dusk"  style="background-image:url('https://lh3.googleusercontent.com/u/0/d/1iAqJVNd4M0f909PvltH4ogL8zzH6AWup')"></div>
+<div id="bgTexture"></div>
+<div id="bgTint"></div>
 <canvas id="fireworks"></canvas>
 
 <div id="iftarBanner">
@@ -297,8 +291,6 @@
     <path id="stringPath" stroke="rgba(180,140,60,0.5)" stroke-width="1" fill="none"/>
   </svg>
 </div>
-
-<div class="sky-label" id="skyLabel"></div>
 
 <div class="container">
   <!-- Moon widget — centred hero at top -->
@@ -390,9 +382,7 @@
       </select>
       <button class="search-btn" onclick="fetchTimes()">Find Times</button>
     </div>
-    <div class="locate-row">
-      <button class="locate-btn" id="locateBtn" onclick="fetchByLocation()">✦ Use My Location</button>
-    </div>
+
     <div class="method-row">
       <select class="method-select" id="methodSelect">
         <optgroup label="Global">
@@ -679,16 +669,7 @@ function initMoon() {
   document.getElementById('moonWidget').addEventListener('click', showIftarCelebration);
 }
 
-// ════════════════════════════════════════════════════
-// STARS
-// ════════════════════════════════════════════════════
-const starsEl = document.getElementById('stars');
-for (let i=0;i<140;i++){
-  const s=document.createElement('div'); s.className='star';
-  const sz=Math.random()*2.5+0.5;
-  s.style.cssText=`width:${sz}px;height:${sz}px;top:${Math.random()*80}%;left:${Math.random()*100}%;--dur:${2+Math.random()*4}s;--delay:${Math.random()*4}s;--min-op:${0.1+Math.random()*0.4}`;
-  starsEl.appendChild(s);
-}
+// Stars removed — replaced with painting backgrounds
 
 // ════════════════════════════════════════════════════
 // LANTERNS
@@ -892,39 +873,47 @@ buildLanterns();
 window.addEventListener('resize', buildLanterns);
 
 // ════════════════════════════════════════════════════
-// DYNAMIC SKY
+// PAINTING BACKGROUNDS — 4 states based on time of day
+// DAWN  04:00–07:00  Suhoor Window
+// DAY   07:00–17:00  Fasting Period
+// DUSK  17:00–20:00  Iftar Moment
+// NIGHT 20:00–04:00  Night Vigil
 // ════════════════════════════════════════════════════
-const SKY_PHASES=[
-  {h:0,  layer:'sky-night',    stars:1,   moon:1,   sun:0,  sTop:90,sLeft:50, label:'Deep Night'},
-  {h:3,  layer:'sky-predawn',  stars:.9,  moon:.9,  sun:0,  sTop:90,sLeft:20, label:'Pre-Dawn'},
-  {h:4.5,layer:'sky-dawn',     stars:.4,  moon:.5,  sun:.1, sTop:88,sLeft:10, label:'Dawn · Fajr'},
-  {h:6,  layer:'sky-morning',  stars:.05, moon:.1,  sun:.9, sTop:70,sLeft:15, label:'Sunrise'},
-  {h:8,  layer:'sky-day',      stars:0,   moon:0,   sun:1,  sTop:40,sLeft:30, label:'Morning'},
-  {h:12, layer:'sky-day',      stars:0,   moon:0,   sun:1,  sTop:10,sLeft:50, label:'Noon · Dhuhr'},
-  {h:15, layer:'sky-afternoon',stars:0,   moon:0,   sun:1,  sTop:25,sLeft:70, label:'Afternoon · Asr'},
-  {h:17.5,layer:'sky-dusk',    stars:.1,  moon:.2,  sun:.8, sTop:65,sLeft:85, label:'Dusk'},
-  {h:18.5,layer:'sky-sunset',  stars:.3,  moon:.5,  sun:.3, sTop:80,sLeft:90, label:'Sunset · Maghrib'},
-  {h:19.5,layer:'sky-evening', stars:.8,  moon:.9,  sun:0,  sTop:90,sLeft:95, label:'Evening · Isha'},
-  {h:21, layer:'sky-night',    stars:1,   moon:1,   sun:0,  sTop:90,sLeft:50, label:'Night'},
-];
-const ALL_SKY=['sky-night','sky-predawn','sky-dawn','sky-morning','sky-day','sky-afternoon','sky-dusk','sky-sunset','sky-evening'];
-function lerp(a,b,t){return a+(b-a)*t;}
-function updateSky(){
-  const now=new Date(), h=now.getHours()+now.getMinutes()/60+now.getSeconds()/3600;
-  let prev=SKY_PHASES[SKY_PHASES.length-1], next=SKY_PHASES[0];
-  for(let i=0;i<SKY_PHASES.length;i++){if(SKY_PHASES[i].h<=h)prev=SKY_PHASES[i];else{next=SKY_PHASES[i];break;}}
-  const span=(next.h-prev.h+24)%24||24, elapsed=(h-prev.h+24)%24, t=Math.min(elapsed/span,1);
-  ALL_SKY.forEach(id=>{const el=document.getElementById(id);if(!el)return;let op=0;if(id===prev.layer)op=1-t;if(id===next.layer)op+=t;el.style.opacity=op;});
-  starsEl.style.opacity=lerp(prev.stars,next.stars,t);
-  // moon is now inline in page flow — always visible
-  const sunEl=document.getElementById('sun');
-  sunEl.style.opacity=lerp(prev.sun,next.sun,t);
-  sunEl.style.top=lerp(prev.sTop,next.sTop,t)+'%';
-  sunEl.style.left=lerp(prev.sLeft,next.sLeft,t)+'%';
-  document.getElementById('skyLabel').textContent=prev.label;
+const BG_STATES = {
+  dawn:  { bg:'bg-dawn',  tint:'rgba(70,40,80,0.45)',  label:'Suhoor Window'  },
+  day:   { bg:'bg-day',   tint:'rgba(20,50,80,0.30)',  label:'Fasting Period' },
+  dusk:  { bg:'bg-dusk',  tint:'rgba(120,50,0,0.40)',  label:'Iftar Moment'   },
+  night: { bg:'bg-night', tint:'rgba(10,5,25,0.50)',   label:'Night Vigil'    },
+};
+
+let currentBgState = null;
+
+function getBackgroundState() {
+  const h = new Date().getHours();
+  if (h >= 4  && h < 7)  return 'dawn';
+  if (h >= 7  && h < 17) return 'day';
+  if (h >= 17 && h < 20) return 'dusk';
+  return 'night';
 }
-updateSky();
-setInterval(updateSky,10000);
+
+function updateBackground() {
+  const state = getBackgroundState();
+  if (state === currentBgState) return;
+  currentBgState = state;
+
+  const cfg = BG_STATES[state];
+
+  // Swap active painting
+  document.querySelectorAll('.bg-layer').forEach(el => el.classList.remove('active'));
+  const bgEl = document.getElementById(cfg.bg);
+  if (bgEl) bgEl.classList.add('active');
+
+  // Update tint colour
+  document.getElementById('bgTint').style.background = cfg.tint;
+}
+
+updateBackground();
+setInterval(updateBackground, 30000);
 
 // ════════════════════════════════════════════════════
 // INLINE CONFETTI  (Google-doodle style, bursts from iftar card)
